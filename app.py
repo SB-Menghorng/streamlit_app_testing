@@ -50,7 +50,8 @@ def import_user_file():
 
 def generate_grouped_counts(df):
     df.columns = df.columns.str.lower()
-    # Clean machine name example
+    
+    # Clean machine name
     if "machine/equipment name" in df.columns:
         df["machine/equipment name"] = df["machine/equipment name"].str.replace(
             "Air-con", "Air Conditioner", case=False, regex=True
@@ -68,30 +69,37 @@ def generate_grouped_counts(df):
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         st.error(f"Missing required columns: {missing_cols}")
-        return None, None, None
+        return None, None, None, None
 
     group1 = (
         df.groupby(["zone", "department", "located at"])["machine/equipment name"]
         .value_counts()
         .reset_index(name="count")
-        .sort_values(
-            ["zone", "department", "located at", "count"],
-            ascending=[True, True, True, False],
-        )
+        .sort_values(["zone", "department", "located at", "count"], ascending=[True, True, True, False])
     )
+
     group2 = (
         df.groupby(["zone", "department"])["machine/equipment name"]
         .value_counts()
         .reset_index(name="count")
         .sort_values(["zone", "department", "count"], ascending=[True, True, False])
     )
+
     group3 = (
         df.groupby(["zone"])["machine/equipment name"]
         .value_counts()
         .reset_index(name="count")
         .sort_values(["zone", "count"], ascending=[True, False])
     )
-    return group1, group2, group3
+
+    group4 = (
+        df["machine/equipment name"]
+        .value_counts()
+        .reset_index(name="count")
+        .rename(columns={"index": "machine/equipment name"})
+    )
+
+    return group1, group2, group3, group4
 
 
 def plot_bar_chart(df, x_col, y_col, color_col, title, hover_extra=None):
@@ -109,20 +117,14 @@ def plot_bar_chart(df, x_col, y_col, color_col, title, hover_extra=None):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def create_excel_report(group1, group2, group3):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        group1.to_excel(writer, sheet_name='Zone_Department_Building', index=False)
-        group2.to_excel(writer, sheet_name='Zone_Department', index=False)
-        group3.to_excel(writer, sheet_name='Zone', index=False)
-    return output.getvalue()
 
-def create_excel_report(group1, group2, group3):
+def create_excel_report(group1, group2, group3, group4):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         group1.to_excel(writer, sheet_name="Zone_Department_Building", index=False)
         group2.to_excel(writer, sheet_name="Zone_Department", index=False)
         group3.to_excel(writer, sheet_name="Zone", index=False)
+        group4.to_excel(writer, sheet_name="Total Machine Count", index=False)
     return output.getvalue()
 
 
@@ -284,13 +286,13 @@ elif page == "📊 Data Cleaner":
             enable_enterprise_modules=False  # Set True if using enterprise features
         )
         if option == "Maintenance":
-            group1, group2, group3 = generate_grouped_counts(df)
+            group1, group2, group3, group4 = generate_grouped_counts(df)
 
             if group1 is not None:
                 st.header("Grouped Counts & Visualizations")
 
-                tab1, tab2, tab3 = st.tabs(
-                    ["Zone + Dept + Building", "Zone + Dept", "Zone Only"]
+                tab1, tab2, tab3, tab4 = st.tabs(
+                    ["Zone + Dept + Building", "Zone + Dept", "Zone Only", "Total Machine Count"]
                 )
 
                 with tab1:
@@ -336,6 +338,24 @@ elif page == "📊 Data Cleaner":
                     "person in charge",
                     "remark",
                 ]
+                with tab4:
+                    st.subheader("4️⃣ Total Machine Count")
+                    st.dataframe(group4, use_container_width=True)
+                    plot_bar_chart(
+                        group4,
+                        "machine/equipment name",
+                        "count",
+                        "machine/equipment name",
+                        "Total Machine Count (All Zones & Depts)",
+                    )
+
+                st.header("🛠️ Maintenance Information")
+                cols_to_show = [
+                    "machine/equipment name",
+                    "year of purchase",
+                    "person in charge",
+                    "remark",
+                ]
                 available_cols = [col for col in cols_to_show if col in df.columns]
                 st.dataframe(df[available_cols], use_container_width=True)
 
@@ -343,6 +363,8 @@ elif page == "📊 Data Cleaner":
                 st.session_state.group1 = group1
                 st.session_state.group2 = group2
                 st.session_state.group3 = group3
+                st.session_state.group4 = group4  # ← Optional: store Group 4 too
+
             else:
                 st.warning("Please fix missing columns and reload your data.")
         else:
@@ -353,13 +375,14 @@ elif page == "📤 Export":
     group1 = st.session_state.get("group1", None)
     group2 = st.session_state.get("group2", None)
     group3 = st.session_state.get("group3", None)
+    group4 = st.session_state.get("group4", None)
 
-    if all([group1 is not None, group2 is not None, group3 is not None]):
+    if all([group1 is not None, group2 is not None, group3 is not None, group4 is not None]):
         st.subheader("Grouped Data Preview")
         st.write("Preview before download:")
         st.dataframe(group1, use_container_width=True)
 
-        excel_data = create_excel_report(group1, group2, group3)
+        excel_data = create_excel_report(group1, group2, group3, group4)
 
         st.download_button(
             label="⬇️ Download Full Equipment Report (Excel)",
