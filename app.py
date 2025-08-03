@@ -21,7 +21,7 @@ page = st.sidebar.radio(
 
 # --- Sidebar footer ---
 st.sidebar.markdown("---")
-st.sidebar.markdown("Created by **Your Name**")
+st.sidebar.markdown("Created by **Sam Vanthorn**")
 st.sidebar.markdown(
     "[GitHub](https://github.com/your-username) | [LinkedIn](https://linkedin.com/in/your-link)"
 )
@@ -97,41 +97,25 @@ def generate_grouped_counts(df):
 def plot_bar_chart(df, x_col, y_col, color_col, title, hover_extra=None):
     if hover_extra is None:
         hover_extra = []
-
-    df_sum = (
-        df.groupby([x_col, color_col])[y_col]
-        .sum()
-        .reset_index()
-    )
-
-    hover_data_safe = [col for col in hover_extra if col in df_sum.columns]
-
-    # Find max y value and add padding (10% of max)
-    max_y = df_sum[y_col].max()
-    y_max_padded = math.ceil(max_y * 1.15)
-
     fig = px.bar(
-        df_sum,
+        df,
         x=x_col,
         y=y_col,
         color=color_col,
         title=title,
-        labels={y_col: "Count", x_col: x_col.title()},
-        barmode="group",
-        hover_data=hover_data_safe,
-        text=y_col
+        labels={y_col: 'Count', x_col: x_col.title()},
+        barmode='group',
+        hover_data=hover_extra
     )
-
-    fig.update_traces(textposition='outside')
-    fig.update_layout(
-        yaxis=dict(title='Total Count', range=[0, y_max_padded]),
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        xaxis_tickangle=-30
-    )
-
     st.plotly_chart(fig, use_container_width=True)
 
+def create_excel_report(group1, group2, group3):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        group1.to_excel(writer, sheet_name='Zone_Department_Building', index=False)
+        group2.to_excel(writer, sheet_name='Zone_Department', index=False)
+        group3.to_excel(writer, sheet_name='Zone', index=False)
+    return output.getvalue()
 
 def create_excel_report(group1, group2, group3):
     output = io.BytesIO()
@@ -180,9 +164,9 @@ elif page == "👤 Profile":
     # Initialize profile and photo in session_state if missing
     if "profile" not in st.session_state:
         st.session_state.profile = {
-            "Name": "Menghorng",
+            "Name": "Sam Vanthorn",
             "Role": "Data Engineer",
-            "Email": "menghorng@example.com",
+            "Email": "samvanthorng@gmail.com",
             "last_saved": None,
         }
     if "profile_photo" not in st.session_state:
@@ -294,7 +278,7 @@ elif page == "📊 Data Cleaner":
         AgGrid(
             df,
             gridOptions=grid_options,
-            theme="fresh",  # Options: "streamlit", "light", "dark", "blue", "fresh", "material"
+            theme="streamlit",  # Options: "streamlit", "light", "dark", "blue", "fresh", "material"
             fit_columns_on_grid_load=True,
             allow_unsafe_jscode=True,  # Required for custom JS features
             enable_enterprise_modules=False  # Set True if using enterprise features
