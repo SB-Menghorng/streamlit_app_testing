@@ -17,6 +17,27 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("Created by **Your Name**")
 st.sidebar.markdown("[GitHub](https://github.com/your-username) | [LinkedIn](https://linkedin.com/in/your-link)")
 
+
+def import_user_file():
+    """Streamlit uploader for CSV and Excel files. Returns a DataFrame or None."""
+    uploaded_file = st.file_uploader("📂 Upload your CSV or Excel file", type=["csv", "xlsx", "xls"])
+
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            st.success("✅ File successfully loaded!")
+            return df
+        except Exception as e:
+            st.error(f"❌ Error loading file: {e}")
+            return None
+    else:
+        st.info("👈 Please upload a file to begin.")
+        return None
+
+
 # --- Main Area ---
 if page == "🏠 Home":
     st.title("🏠 Welcome to the Data Cleaner App")
@@ -33,7 +54,12 @@ elif page == "👤 Profile":
         
 elif page == "📊 Data Cleaner":
     st.title("📊 Data Cleaning Section")
-    st.warning("This section is under construction...")
+
+    df = import_user_file()
+
+    if df is not None:
+        st.subheader("Preview of Uploaded Data")
+        st.dataframe(df, use_container_width=True)
 
 elif page == "📤 Export":
     st.title("📤 Export Options")
