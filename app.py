@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px  # Add this to top of your app.py
 
 # --- App configuration ---
 st.set_page_config(
@@ -60,6 +61,43 @@ elif page == "📊 Data Cleaner":
     if df is not None:
         st.subheader("Preview of Uploaded Data")
         st.dataframe(df, use_container_width=True)
+        df.columns = df.columns.str.lower()
+        # Optional: clean machine name
+        if "machine/equipment name" in df.columns:
+            df["machine/equipment name"] = df["machine/equipment name"].str.replace(
+                "Air-con", "Air Conditioner", case=False, regex=True
+            )
+
+        # Perform the grouping and counting
+        if all(col in df.columns for col in ["zone", "located at", "department", "machine/equipment name"]):
+            st.subheader("📊 Grouped Equipment Count")
+            grouped_df = (
+                df.groupby(["zone", "located at", "department"])["machine/equipment name"]
+                .value_counts()
+                .reset_index(name="count")
+            )
+            st.dataframe(grouped_df, use_container_width=True)
+            # --- Add custom chart ---
+            st.subheader("📈 Custom Equipment Distribution Chart")
+
+            chart_zone = st.selectbox("Select zone to view chart:", grouped_df["zone"].unique())
+
+            chart_data = grouped_df[grouped_df["zone"] == chart_zone]
+
+            fig = px.bar(
+                chart_data,
+                x="machine/equipment name",
+                y="count",
+                color="department",
+                title=f"Equipment Count by Department in Zone {chart_zone}",
+                labels={"count": "Number of Machines"},
+                barmode="group"
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.warning("Some required columns are missing: 'zone', 'located at', 'department', or 'machine/equipment name'")
 
 elif page == "📤 Export":
     st.title("📤 Export Options")
